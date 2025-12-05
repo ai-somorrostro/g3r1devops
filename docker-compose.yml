@@ -1,0 +1,38 @@
+version: '3.8'
+
+services:
+  backend:
+    image: ghcr.io/ai-somorrostro/g3r1backend:latest
+    container_name: jobmatcher_backend
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
+      - ES_HOST=http://host.docker.internal:9200
+      - ES_USER=${ES_USER}
+      - ES_PASSWORD=${ES_PASSWORD}
+      - ES_INDEX=${ES_INDEX}
+      - ES_API_KEY=${ES_API_KEY}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
+
+  scrapper:
+    image: ghcr.io/ai-somorrostro/manfred_scrapper:latest
+    container_name: jobmatcher_scrapper
+    env_file:
+      - .env
+    environment:
+      - ES_HOST=http://host.docker.internal:9200
+      - ES_USER=${ES_USER}
+      - ES_PASSWORD=${ES_PASSWORD}
+      - ES_INDEX=${ES_INDEX}
+      - ES_API_KEY=${ES_API_KEY}
+    volumes:
+      - ./scrapper_data:/app/data
+      - ./scrapper_logs:/app/logs
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
