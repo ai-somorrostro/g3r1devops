@@ -1,2 +1,12 @@
 *.log
 .env
+# Datos sensibles - cada persona usa sus propias claves
+nodo2/kibana/kibana.yml
+nodo2/metricbeat/metricbeat.yml
+
+# Claves y tokens - cada usuario genera los suyos
+**/elasticsearch.serviceAccountToken
+**/xpack.encryptedSavedObjects.encryptionKey
+**/xpack.reporting.encryptionKey
+**/xpack.security.encryptionKey
+**/xpack.fleet.outputs
