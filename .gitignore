@@ -1,2 +1,21 @@
 *.log
+*log.gz
 .env
+venv
+*.txt
+logstash_sincedb*
+
+# Ignorar carpetas de instalación completas
+nodo1/elasticsearch-*/
+nodo1/logstash-*/
+
+# Pero queremos salvar las configuraciones (excepciones)
+!nodo1/elasticsearch-*/config/
+!nodo1/logstash-*/config/
+!nodo1/logstash-*/pipeline/
+
+# Ignorar logs y datos por si acaso
+*/data/
+*/logs/
+*.gz
+*.tar
