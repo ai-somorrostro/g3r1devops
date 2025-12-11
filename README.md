@@ -177,4 +177,4 @@ kibana:
     *   `/kibana`: Configuración de visualización.
 
 ---
-**Autores**: Equipo AI-Somorrostro
+**Autores**: Samuel Rivera, Oier Cadierno y Jon Medina
