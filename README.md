@@ -22,101 +22,139 @@ El sistema sigue una arquitectura de microservicios dividida en tres capas princ
 
 ## 🛠 Guía de Despliegue (Deployment)
 
-El proyecto está organizado en **dos repositorios distintos** para desacoplar la infraestructura del código de aplicación:
+El sistema utiliza **imágenes pre-construidas** almacenadas en el Container Registry. El despliegue es extremadamente simple gracias a `docker-compose`.
 
-1.  **`repo-devops`**: Contiene la definición de infraestructura (ELK Stack) y configuraciones.
-2.  **`repo-backend`**: Contiene el código fuente de la API, el Chatbot y el Frontend.
+### Repositorios del Proyecto
 
-### 1. Despliegue de Infraestructura
+1.  **`g3r12025devops`**: Orquestación de servicios (ELK Stack, Backend, Scrapper).
+2.  **`g3r12025backend`**: Código fuente del Backend (FastAPI + RAG).
+3.  **`g3r12025-frontend`**: Código fuente del Frontend (React).
 
-Este repositorio gestiona la base de datos y herramientas de monitorización. Se asume la siguiente estructura:
-```
-/g3r12025devops
-├── elasticsearch
-│   └── config
-│       └── elasticsearch.yml  <-- Configuración personalizada
-├── kibana
-│   └── config
-│       └── kibana.yml
-└── docker-compose.yml (o scripts de despliegue)
-```
+---
 
-#### Paso 1.1: Crear Red Compartida
-Es crucial crear una red externa para que los contenedores de ambos repositorios se comuniquen.
+### Despliegue Completo (desde `g3r12025devops`)
+
+1.  **Clonar el repositorio DevOps**:
+    ```bash
+    git clone git@github.com:ai-somorrostro/g3r12025devops.git
+    cd g3r12025devops
+    ```
+
+2.  **Configurar variables de entorno**:
+    Crea un archivo `.env` en la raíz con las credenciales necesarias:
+    ```env
+    # Elasticsearch
+    ELASTIC_PASSWORD=tu_password_seguro
+    
+    # Backend API
+    OPENROUTER_API_KEY=sk-or-v1-...
+    ES_HOST=http://elasticsearch:9200
+    ES_USER=elastic
+    ES_PASSWORD=tu_password_seguro
+    ```
+
+3.  **Levantar todos los servicios**:
+    ```bash
+    docker-compose up -d
+    ```
+    
+    Este comando automáticamente:
+    - Descarga las imágenes pre-construidas del Container Registry
+    - Levanta Elasticsearch y Kibana
+    - Inicia el Backend y el Scrapper
+    - Configura la red interna entre servicios
+
+4.  **Verificar estado**:
+    ```bash
+    docker-compose ps
+    ```
+
+5.  **Acceder a los servicios**:
+    - **Backend API**: `http://localhost:8000/docs`
+    - **Kibana**: `http://localhost:5601`
+    - **Elasticsearch**: `http://localhost:9200`
+
+### Detener servicios
+
 ```bash
-docker network create jobmatcher-network
-```
-
-#### Paso 1.2: Levantar ELK Stack
-Desde la raíz de `repo-devops`, levanta los servicios. Si usas scripts individuales o `docker run`, asegúrate de montar los volúmenes de configuración correctamente.
-
-**Ejemplo para Elasticsearch:**
-```bash
-docker run -d \
-  --name elasticsearch \
-  --net jobmatcher-network \
-  -p 9200:9200 \
-  -v $(pwd)/elasticsearch/config/elasticsearch.yml:/usr/share/elasticsearch/config/elasticsearch.yml \
-  -v es_data:/usr/share/elasticsearch/data \
-  -e "discovery.type=single-node" \
-  -e "ES_JAVA_OPTS=-Xms1g -Xmx1g" \
-  -e "xpack.security.enabled=true" \
-  -e "ELASTIC_PASSWORD=changeme" \
-  docker.elastic.co/elasticsearch/elasticsearch:8.15.0
+docker-compose down
 ```
 
 ---
 
-### 2. Despliegue de Aplicación (Desde `g3r12025backend`)
+### Notas Importantes
 
-Este repositorio contiene la lógica de negocio.
+- **No se requiere construir imágenes localmente**: Las imágenes de Backend y Scrapper están en el Container Registry y se descargan automáticamente.
+- **Configuraciones personalizadas**: Los archivos `elasticsearch/config/elasticsearch.yml` y `kibana/config/kibana.yml` se montan como volúmenes.
+- **Persistencia de datos**: Elasticsearch usa un volumen Docker para mantener los datos entre reinicios.
 
-#### Paso 2.1: Configuración
-Crea un archivo `.env` en la raíz del backend basándote en el ejemplo. Asegúrate de que `ES_HOST` apunte al nombre del contenedor definido en el paso anterior (e.g., `http://elasticsearch:9200`).
+---
 
-```env
-ES_HOST=http://elasticsearch:9200
-OPENROUTER_API_KEY=...
+## 📦 Arquitectura de Configuración ELK
+
+El stack ELK se despliega utilizando **imágenes oficiales de Elastic** con configuraciones personalizadas montadas como volúmenes. Este enfoque permite separar la lógica de la infraestructura (imágenes base) de la configuración específica del proyecto.
+
+### Estructura de Archivos de Configuración
+
+```
+g3r12025devops/
+├── elasticsearch/
+│   └── config/
+│       └── elasticsearch.yml    # Configuración del nodo ES
+├── kibana/
+│   └── config/
+│       └── kibana.yml            # Configuración de Kibana
+├── logstash/
+│   └── config/
+│       └── logstash.yml          # Configuración de Logstash (opcional)
+└── docker-compose.yml
 ```
 
-#### Paso 2.2: Construcción y Ejecución del Backend
-Desde `g3r12025backend`:
+### Estrategia de Despliegue por Componente
 
-```bash
-# Construir la imagen
-docker build -t jobmatcher-backend -f backend/Dockerfile .
+#### Elasticsearch
+- **Imagen base**: `docker.elastic.co/elasticsearch/elasticsearch:8.15.0`
+- **Configuración personalizada**: Se monta `elasticsearch/config/elasticsearch.yml` dentro del contenedor en `/usr/share/elasticsearch/config/elasticsearch.yml`
+- **Propósito del yml**: Define configuración del clúster, seguridad (xpack), límites de memoria, CORS, networking entre nodos, etc.
 
-# Ejecutar conectando a la red 'jobmatcher-network'
-docker run -d \
-  --name jobmatcher_backend \
-  --net jobmatcher-network \
-  -p 8000:8000 \
-  --env-file .env \
-  -v $(pwd)/model_cache:/app/model_cache \
-  jobmatcher-backend
+**Ejemplo de montaje en docker-compose**:
+```yaml
+elasticsearch:
+  image: docker.elastic.co/elasticsearch/elasticsearch:8.15.0
+  volumes:
+    - ./elasticsearch/config/elasticsearch.yml:/usr/share/elasticsearch/config/elasticsearch.yml:ro
+    - es_data:/usr/share/elasticsearch/data
+  environment:
+    - discovery.type=single-node
+    - ELASTIC_PASSWORD=${ELASTIC_PASSWORD}
 ```
 
-### 3. Despliegue del Frontend (Desde `g3r12025-frontend`)
+#### Kibana
+- **Imagen base**: `docker.elastic.co/kibana/kibana:8.15.0`
+- **Configuración personalizada**: Se monta `kibana/config/kibana.yml` en `/usr/share/kibana/config/kibana.yml`
+- **Propósito del yml**: Define la URL de Elasticsearch, credenciales, servidor HTTP, idioma, índices por defecto, etc.
 
-El código del frontend se encuentra en el submódulo/carpeta `g3reto12025-frontend`.
-
-#### Construcción para Producción
-1. Navega a la carpeta del frontend:
-   ```bash
-   cd g3reto12025-frontend/frontend
-   ```
-2. Instala dependencias y construye:
-   ```bash
-   npm install
-   npm run build
-   ```
-3. El resultado estará en `dist/` o `build/`.
-
-#### Ejecución en Desarrollo
-```bash
-cd g3reto12025-frontend/frontend
-npm start
+**Ejemplo de montaje**:
+```yaml
+kibana:
+  image: docker.elastic.co/kibana/kibana:8.15.0
+  volumes:
+    - ./kibana/config/kibana.yml:/usr/share/kibana/config/kibana.yml:ro
+  environment:
+    - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
 ```
+
+#### Logstash (Opcional)
+- **Imagen base**: `docker.elastic.co/logstash/logstash:8.15.0`
+- **Configuración personalizada**: `logstash/config/logstash.yml` + pipelines en `logstash/pipeline/`
+- **Propósito del yml**: Configuración de logging, monitorización, API settings, etc.
+
+### Ventajas de Este Enfoque
+
+1. **Separación de responsabilidades**: El código de configuración (yml) está versionado en git, mientras que las imágenes base se obtienen del registry oficial de Elastic.
+2. **Actualizaciones simplificadas**: Para actualizar Elasticsearch de 8.15.0 a 8.16.0, solo se cambia la versión de la imagen en `docker-compose.yml`.
+3. **Portabilidad**: Los mismos archivos yml funcionan en desarrollo, staging y producción cambiando solo las variables de entorno.
+4. **Seguridad**: Secretos (passwords, certificados) se inyectan vía variables de entorno, no hardcodeados en los yml.
 
 ---
 
