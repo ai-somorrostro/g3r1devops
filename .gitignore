@@ -4,6 +4,7 @@
 .env
 venv
 *.txt
+!despliegue.txt
 logstash_sincedb*
 
 # Ignorar carpetas de instalación completas
