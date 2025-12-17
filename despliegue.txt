@@ -1,3 +1,7 @@
+paso 1: clonar el repositorio IMPORTANTE!!! con HTTPS, NO SSH
+
+
+Paso 2: instalar elastic:
 ELASTICSEARCH:
 wget https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-9.2.2-linux-x86_64.tar.gz
 wget https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-9.2.2-linux-x86_64.tar.gz.sha512
@@ -5,9 +9,22 @@ shasum -a 512 -c elasticsearch-9.2.2-linux-x86_64.tar.gz.sha512
 tar -xzf elasticsearch-9.2.2-linux-x86_64.tar.gz
 cd elasticsearch-9.2.2/
 
-
+paso 3: instalar logstash
 LOGSTASH:
-wget https://artifacts.elastic.co/downloads/logstash/logstash-8.18.2-linux-x86_64.tar.gz
-tar -xzf logstash-8.18.2-linux-x86_64.tar.gz
-mv logstash-8.18.2 logstash
+wget https://artifacts.elastic.co/downloads/logstash/logstash-9.2.2-linux-x86_64.tar.gz
+tar -xzf logstash-9.2.2-linux-x86_64.tar.gz
+mv logstash-9.2.2 logstash
 cd logstash
+
+paso 4: ejecutar elastic y cambiar la contraseña en el jobs.conf
+paso 5: poner el jobs.conf que está dentro de nodo1/logstash-9.2.1/config en el logstash nuevo
+
+paso 6: ejecutar el docker compose con sudo docker-compose up -d --build 
+paso 7: ejecutar logstash y ver que los datos entran
+
+
+
+COMANDOS UTILES:
+
+Ver logs de un contenedor:
+docker logs -f nombre_contenedor
